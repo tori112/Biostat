@@ -1,0 +1,166 @@
+---
+title: "HW3_Belova_VP"
+author: "Belova"
+date: "2024-03-17"
+output: html_document
+---
+```{r}
+##install.packages("readxl")
+```
+
+```{r}
+library(readxl) 
+pima <- read_excel("C:/Users/vikib/Documents/data/pima.xlsx")
+str(pima)
+```
+```{r}
+library(dplyr)
+
+pima <- pima %>%
+  mutate(pregnant = as.integer(pregnant),
+         pressure = as.integer(pressure),
+         triceps = as.integer(triceps),
+         insulin = as.integer(insulin),
+         age = as.integer(age),
+         diabetes = as.factor(diabetes))
+```
+
+```{r}
+str(pima)
+```
+
+```{r}
+result <- pima %>% 
+  summarise(
+    count_glucose = n(),
+    mean_glucose = mean(glucose, na.rm = TRUE),
+    sd_glucose = sd(glucose, na.rm = TRUE),
+    min_glucose = min(glucose, na.rm = TRUE),
+    q1_glucose = quantile(glucose, 0.25, na.rm = TRUE),
+    median_glucose = median(glucose, na.rm = TRUE),
+    q3_glucose = quantile(glucose, 0.75, na.rm = TRUE),
+    max_glucose = max(glucose, na.rm = TRUE),
+    
+    count_pressure = n(),
+    mean_pressure = mean(pressure, na.rm = TRUE),
+    sd_pressure = sd(pressure, na.rm = TRUE),
+    min_pressure = min(pressure, na.rm = TRUE),
+    q1_pressure = quantile(pressure, 0.25, na.rm = TRUE),
+    median_pressure = median(pressure, na.rm = TRUE),
+    q3_pressure = quantile(pressure, 0.75, na.rm = TRUE),
+    max_pressure = max(pressure, na.rm = TRUE),
+    
+    count_mass = n(),
+    mean_mass = mean(mass, na.rm = TRUE),
+    sd_mass = sd(mass, na.rm = TRUE),
+    min_mass = min(mass, na.rm = TRUE),
+    q1_mass = quantile(mass, 0.25, na.rm = TRUE),
+    median_mass = median(mass, na.rm = TRUE),
+    q3_mass = quantile(mass, 0.75, na.rm = TRUE),
+    max_mass = max(mass, na.rm = TRUE)
+  )
+result_glucose <- result[1, c("count_glucose", "mean_glucose", "sd_glucose", "min_glucose",
+                              'q1_glucose', "median_glucose", "q3_glucose", "max_glucose" )]
+result_pressure <- result[1, c("count_pressure", "mean_pressure", "sd_pressure", "min_pressure",
+                               'q1_pressure', 'median_pressure', 'q3_pressure', 'max_pressure' )]
+result_mass <- result[1, c("count_mass", "mean_mass", "sd_mass", "min_mass",
+                               'q1_mass', 'median_mass', 'q3_mass', 'max_mass')]
+
+result_glucose
+result_pressure
+result_mass
+```
+```{r}
+# Вычисление описательных статистик для переменной diabetes как категориальной переменной
+diabetes_summary <- pima %>%
+  group_by(diabetes) %>%
+  summarise(
+    count = n(),
+    relative_frequency = n() / nrow(pima)
+  )
+
+# Создание новой переменной age_group на основе переменной age
+pima <- pima %>%
+  mutate(age_group = case_when(
+    age >= 21 & age <= 35 ~ "21-35",
+    age >= 36 & age <= 49 ~ "36-49",
+    age >= 50 ~ "50+"
+  ))
+
+# Вычисление описательных статистик для переменной age_group
+age_group_summary <- pima %>%
+  group_by(age_group) %>%
+  summarise(
+    count = n(),
+    relative_frequency = n() / nrow(pima)
+  )
+
+# Вычисление абсолютной и относительной частоты для переменной diabetes
+diabetes_absolute_frequency <- table(pima$diabetes)
+diabetes_relative_frequency <- diabetes_absolute_frequency / nrow(pima)
+
+# Вычисление абсолютной и относительной частоты для переменной age_group
+age_group_absolute_frequency <- table(pima$age_group)
+age_group_relative_frequency <- age_group_absolute_frequency / nrow(pima)
+
+diabetes_summary
+age_group_summary
+diabetes_absolute_frequency
+diabetes_relative_frequency
+age_group_absolute_frequency
+age_group_relative_frequency
+```
+
+```{r}
+# Определение функции для вычисления доверительного интервала
+calculate_confidence_interval <- function(pima, confidence_level) {
+  mean_value <- mean(pima)
+  standard_error <- sd(pima) / sqrt(length(pima))
+  z_value <- qnorm((1 + confidence_level) / 2)
+  
+  lower_bound <- mean_value - z_value * standard_error
+  upper_bound <- mean_value + z_value * standard_error
+  
+  interval <- c(lower_bound, upper_bound)
+  return(interval)
+}
+
+pedigree_data <- pima$pedigree
+
+# Вычисление 90% доверительного интервала для переменной pedigree
+confidence_interval <- calculate_confidence_interval(pedigree_data, 0.90)
+
+confidence_interval
+```
+```{r}
+library(ggplot2)
+
+# Построение графика плотности вероятности для переменной glucose
+ggplot(pima, aes(x = glucose, fill = "glucose")) +
+  geom_density(alpha = 0.5) +
+  geom_vline(xintercept = mean(pima$glucose), linetype = "dashed", color = "black") +
+  scale_x_continuous(labels = function(x) ifelse(x == mean(pima$glucose), paste("Среднее: ", round(x, 2)), x)) +
+  ylim(0, 0.015) +
+  labs(title = "Плотность вероятности для переменной glucose")
+
+# Построение гистограммы для переменной glucose
+ggplot(pima, aes(x = glucose, fill = "glucose")) +
+  geom_histogram(binwidth = 10, color = "black", fill = "lightblue", alpha = 0.7) +
+  labs(title = "Гистограмма переменной glucose")
+
+# Построение Boxplot для значений pos и neg переменной diabetes
+ggplot(pima, aes(x = diabetes, y = glucose, fill = diabetes)) +
+  geom_boxplot() +
+  labs(title = "Boxplot для значений pos и neg переменной diabetes")
+```
+```{r}
+# Построение двух диаграмм рассеяния для переменных обхвата трицепса и массы тела 
+ggplot(pima, aes(x = triceps, y = mass, color = diabetes, fill = diabetes)) +
+  geom_point(shape = 21, size = 3) +
+  facet_grid(. ~ diabetes) +
+  labs(title = "Диаграммы рассеяния для наличия или отсутствия диабета 
+       с переменными обхвата трицепса и массы тела",
+      x = "Обхват трицепса",
+      y = "Масса тела")
+```
+
