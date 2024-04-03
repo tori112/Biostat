@@ -1,0 +1,278 @@
+---
+title: "HW5"
+author: "Belova"
+date: "2024-03-30"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+
+# Загрузка данных из файла
+data <- read.csv('wisconsin_breast_cancer.csv')
+```
+```{r}
+str(data)
+```
+```{r}
+data$diagnosis <- factor(data$diagnosis)
+```
+
+#Задание 1
+Создайте регрессионную модель, которая бы описывала связь среднего радиуса опухоли и средней площади (а), среднего периметра (б), средней симметричности (в).
+
+Постройте графики, на которых отразите регрессионную прямую, и прокомментируйте свои находки.
+
+```{r}
+
+# Построение регрессионной модели
+model <- lm(radius_mean ~ area_mean + perimeter_mean + symmetry_mean, data=data)
+# Получение R-квадрат (коэффициент детерминации) для регрессионной модели
+summary(model)$r.squared
+
+# График для связи среднего радиуса опухоли и средней площади
+ggplot(data, aes(x=area_mean, y=radius_mean)) + 
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE, color="violet") +
+  labs(title="Regression of Mean Radius and Mean Area")
+
+# График для связи среднего радиуса опухоли и среднего периметра
+ggplot(data, aes(x=perimeter_mean, y=radius_mean)) + 
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE, color="green") +
+  labs(title="Regression of Mean Radius and Mean Perimeter")
+
+# График для связи среднего радиуса опухоли и средней симметричности
+ggplot(data, aes(x=symmetry_mean, y=radius_mean)) + 
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE, color="red") +
+  labs(title="Regression of Mean Radius and Mean Symmetry")
+```
+##Выводы:
+Графики для связи среднего радиуса опухоли и средней площади, среднего периметра и средней симметричности показывают линии регрессии, которые отображают связь между этими характеристиками. Линии регрессии смещены от origin (0,0), это означает, что среднее значение радиуса опухоли зависит от каждой из представленных на графиках характеристик.
+
+Коэффициент детерминации (R-квадрат) равен 0.9971156. Этот коэффициент представляет собой долю дисперсии зависимой переменной (в нашем случае среднего радиуса опухоли), которая объясняется независимыми переменными (площадь, периметр и симметричность).
+Значение R-квадрат близкое к 1 указывает на то, что модель хорошо объясняет изменчивость зависимой переменной среднего радиуса опухоли с помощью независимых переменных (площадь, периметр и симметричность). Т.е.примерно 99.71% вариации в среднем радиусе опухоли объясняется выбранными независимыми переменными.
+Таким образом, можно сделать вывод, что модель, основанная на площади, периметре и симметричности, хорошо объясняет изменения в среднем радиусе опухоли.
+
+#Задание 2
+Пусть колонка с диагнозом принимает следующие значения: злокачественная опухоль — 1, а доброкачественная — 0. Постройте модель, которая бы прогнозировала вероятность возникновения злокачественной опухоли от среднего радиуса (а), средней площади (б), средней текстуры (в).
+
+Постройте графики. Создайте модель, которая бы прогнозировала вероятность возникновения злокачественной опухоли от всех трех перечисленных факторов.
+
+```{r}
+# Преобразование диагноза в 0/1
+data$diagnosis <- ifelse(data$diagnosis == "M", 1, 0)
+
+# График для связи среднего радиуса и вероятности возникновения ЗНО
+ggplot(data, aes(x=radius_mean, y=predict(model, newdata=data, type="response"))) +
+  geom_point(aes(color=diagnosis)) +
+  geom_smooth(method="glm", se=FALSE, color="blue") +
+  labs(title="Regression of Radius and Breast Cancer Probability")
+
+# График для связи средней площади и вероятности возникновения ЗНО
+ggplot(data, aes(x=area_mean, y=predict(model, newdata=data, type="response"))) +
+  geom_point(aes(color=diagnosis)) +
+  geom_smooth(method="glm", se=FALSE, color="green") +
+  labs(title="Regression of Area and Breast Cancer Probability")
+
+# График для связи средней текстуры и вероятности возникновения ЗНО
+ggplot(data, aes(x=texture_mean, y=predict(model, newdata=data, type="response"))) +
+  geom_point(aes(color=diagnosis)) +
+  geom_smooth(method="glm", se=FALSE, color="red") +
+  labs(title="Regression of Texture and Breast Cancer Probability")
+```
+```{r}
+# Создание модели с тремя факторами
+model_all_factors <- glm(diagnosis ~ radius_mean + area_mean + texture_mean, data=data, family=binomial(link="logit"))
+
+# График для связи трех факторов и вероятности возникновения ЗНО
+ggplot(data, aes(x=radius_mean, y=predict(model_all_factors, newdata=data, type="response"))) +
+  geom_point(aes(color=diagnosis)) +
+  geom_smooth(method="glm", se=FALSE, color="blue") +
+  labs(title="Regression of All Factors and Breast Cancer Probability", 
+       y="Predicted Probability of Malignant Tumor")
+
+```
+
+#Задание 3
+Создайте переменную event, в которой отразите наличие или отсутствие (1 или 0) интересующего события — смерти пациента.
+
+Изучите работу функций Surv(), survfit() и ggsurvplot():
+
+
+Постройте график кумулятивной функции рисков (cumulative hazard function) для пола. Проинтерпретируйте график.
+С помощью функции coxph() постройте регрессию Кокса и оцените влияние пола на выживаемость. Что вы можете сказать о полученных результатах?
+
+
+```{r}
+
+# Load the survival package
+library(survival)
+
+# Load the lung dat
+lung
+
+```
+
+```{r}
+str(lung)
+```
+```{r}
+# Создание переменной event
+lung$event <- ifelse(lung$status == 2, 1, 0)
+```
+
+Цензурированные данные:
+
+```{r}
+library(survminer)
+
+# Построение модели выживаемости в зависимости от пола
+fit <- survfit(Surv(time, status) ~ sex, data = lung)
+
+# Визуализация кривых выживаемости
+ggsurvplot(fit, 
+      data = lung, 
+      pval = TRUE, 
+      risk.table = TRUE, 
+      risk.table.fontsize = 3,
+      conf.int = TRUE, 
+      palette = c("yellow", "lightgreen"),
+      xlab = "Время в днях", 
+      ylab = "Вероятность выживания",
+      title = "Кривые выживаемости по полу")
+  
+
+survdiff(Surv(time, status) ~ sex, data = lung)
+
+```
+p-value меньше уровня значимости 0.05, это указывает на то, что существует статистически значимая разница в выживаемости между группами мужчин и женщин.По визуальной оценке графика вероятность выживания у женщин выше, чем у мужчин.
+
+#Без цензурированных данных
+##Постройте кривые выживаемости в зависимости от пола 
+(на одном графике должны получиться две кривые для каждого пола и таблица числа пациентов, подверженных риску (at risk) под ним). Поясните получившееся значение p-value для лог-рангового теста и опишите наблюдаемые результаты.
+
+```{r}
+# Filter the data for deceased patients
+deceased_data <- lung[lung$event == 1, ]
+
+# Fit the survival model for deceased patients
+fit_1 <- survfit(Surv(time, event) ~ sex, data = deceased_data)
+
+# Visualize the survival curves for deceased patients
+ggsurvplot(fit_1,
+           data = deceased_data,
+           pval = TRUE,
+           risk.table = TRUE,
+           risk.table.fontsize = 3,
+           conf.int = TRUE,
+           palette = c("yellow", "lightgreen"),
+           xlab = "Time in days",
+           ylab = "Survival probability",
+           title = "Survival Curves by Gender (Deceased Patients)")
+
+# Compare survival rates between genders for deceased patients
+survdiff(Surv(time, event) ~ sex, data = deceased_data)
+
+ggsurvplot(fit_1,
+           conf.int = TRUE,
+           surv.median.line = "hv",
+           pval = TRUE,
+           pval.method = TRUE
+           )
+```
+###Выводы:
+p-value больше уровня значимости 0.05, это указывает на то, что не существует статистически значимой разницы в выживаемости между группами умерших мужчин и женщин. Визуальная оценка графика предполагает также на отсутствие разницы между двумя группами умерших. На графике цензурированных данных нет.
+
+#Цензурированные данные:
+```{r}
+library(survminer)
+
+lung$sex <- factor(lung$sex, levels = c(1, 2), labels = c("мужской", "женский"))
+
+# Постройте график кумулятивной функции риска
+g <- ggsurvplot(fit, data = lung, fun = "cumhaz", conf.int = TRUE,
+                palette = c("pink", "blue"),
+                xlab = "Время", ylab = "Кумулятивный риск",
+                title = "Кумулятивная функция рисков по полу",
+                legend.title = "Пол",
+                legend.labs = c("Мужской", "Женский"))
+
+print(g)
+```
+
+#Без цензурирования.
+Постройте график кумулятивной функции рисков (cumulative hazard function) для пола. Проинтерпретируйте график. 
+
+```{r}
+library(survminer)
+
+# Построение кумулятивной функции риска
+g <- ggsurvplot(fit_1, 
+                data = deceased_data, 
+                fun = "cumhaz", 
+                conf.int = TRUE,
+                palette = c("pink", "blue"),
+                xlab = "Время", ylab = "Кумулятивный риск",
+                title = "Кумулятивная функция рисков для умерших пациентов по полу",
+                legend.title = "Пол",
+                legend.labs = c("Мужской", "Женский"))
+
+print(g)
+```
+
+#Интерпретация графика:
+
+Каждая линия на графике представляет собой оценку кумулятивного риска события (смерти) с течением времени для каждой группы (мужчины и женщины).
+
+Линии на графике расположены достаточно тесно относительно друг друга, это может указывать на одинаково высокий риск события для каждой группы.
+
+Если линии пересекаются, это может указывать на изменение риска в разное время. Мы можем видеть, что этот риск у женщин сильно возрастат ближе к 800 дню.
+
+Доверительные интервалы говорят о надежности оценок.
+
+По наклону линий можно оценить скорость нарастания риска: более крутой наклон указывает на более быстрое увеличение риска.
+
+
+```{r}
+cox <- coxph(Surv(time, status) ~ sex, data = deceased_data)
+cox
+summary(cox)
+```
+#Вывод:
+По данным модели пропорциональных опасностей Кокса риск умереть у женщин был на 22% ниже, чем у мужчин по данным без цензурирования. У мужчин риск умереть в этой группе был выше на 28% по сранвению с женщинами.
+
+p-значение больше уровня значимости 0,05 ,а значит мы не можем отвергнуть нулевую гипотезу и будем считать эффект статистически незначимым. Это означает, что пол не оказывает значимое влияние на выживаемость в данной выборке.
+
+```{r}
+library(ggsurvfit)
+survfit2(Surv(time, status) ~ sex, data = deceased_data) %>% 
+  ggsurvfit(type = "survival") +
+  labs(
+    x = "Дни",
+    y = "Вероятность выживания"
+  ) + 
+  add_confidence_interval()
+```
+#Вывод: 
+Кривые выживания не пересекаются, но располагются значительно ближе, чем в данных с цензурированием. Опасность пропорциональна, но различий практически нет.
+
+```{r}
+plot(
+  survfit(Surv(time, status) ~ sex, data = deceased_data) , 
+  col=c("black", "red"), 
+  fun="cloglog", 
+  xlab = "Time (in days) using log",
+  ylab = "log-log survival"
+)
+```
+Данные по полу не пересекаются на кривой log-log выживаемости.
+
+```{r}
+cox.zph(cox)
+ggcoxzph(cox.zph(cox))
+```
+Тест пропорциональности для модели Кокса, p-vaue больше 0,05, а значит нет статистически значимых различий. Относительно врмени данные распределены вокруг нуля, доверительный интвервал включает ноль, обе переменные соблюдают тест пропорциональности относительно нуля и друг друга. Значит пересечения на графике log-log можем проигнорировать и использовать модель.
